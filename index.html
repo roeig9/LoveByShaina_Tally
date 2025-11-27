@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Radius Selector Map</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet Editable (allows dragging circle radius) -->
+  <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    .info-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-family: Arial;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+<div class="info-box">
+  Move the circle or drag its border to change the radius.<br>
+  Radius (meters): <span id="radiusValue">Loading…</span>
+</div>
+
+<div id="map"></div>
+
+<script>
+  // Initialize map
+  var map = L.map('map', {
+    editable: true
+  }).setView([0, 0], 13);
+
+  // Add basic tile layer (free)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Function to send values back to Tally
+  function sendToTally(lat, lng, radius) {
+    window.parent.postMessage(
+      {
+        type: "tally.embeddedForm.onAnswerChange",
+        data: {
+          latitude: lat,
+          longitude: lng,
+          radius_m: radius
+        }
+      },
+      "*"
+    );
+  }
+
+  // Auto locate user
+  map.locate({ setView: true, maxZoom: 15 });
+
+  var circle;
+
+  map.on("locationfound", function (e) {
+    var lat = e.latlng.lat;
+    var lng = e.latlng.lng;
+
+    // Draw circle (default radius 1000m)
+    circle = L.circle([lat, lng], {
+      radius: 1000,
+      editable: true
+    }).addTo(map);
+
+    map.fitBounds(circle.getBounds());
+
+    document.getElementById("radiusValue").innerText = circle.getRadius();
+
+    // Send initial value to Tally
+    sendToTally(lat, lng, circle.getRadius());
+
+    // Update when circle is dragged
+    circle.enableEdit();
+
+    circle.on("editable:drag", function () {
+      var c = circle.getLatLng();
+      sendToTally(c.lat, c.lng, circle.getRadius());
+    });
+
+    // Update when radius changes
+    circle.on("editable:vertex:drag", function () {
+      document.getElementById("radiusValue").innerText = circle.getRadius();
+      var c = circle.getLatLng();
+      sendToTally(c.lat, c.lng, circle.getRadius());
+    });
+  });
+
+  map.on("locationerror", function () {
+    alert("Could not get your location. Please allow location permissions.");
+  });
+</script>
+
+</body>
+</html>
