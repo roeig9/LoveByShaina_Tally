@@ -61,8 +61,6 @@
   Radius (meters): <span id="radiusValue">Loading…</span>
 </div>
 
-<button id="submitBtn">Use this location</button>
-
 <div id="map"></div>
 
 <script>
@@ -106,19 +104,22 @@ circle.on("editable:vertex:drag editable:drag", function () {
 
   });
 
-  document.getElementById("submitBtn").addEventListener("click", function () {
-    if (!circle) return alert("Map is still loading…");
+function sendToTally() {
+  if (!circle) return;
+  const c = circle.getLatLng();
+  const r = circle.getRadius();
+  window.location.href = `${TALLY_FORM_URL}?lat=${c.lat}&lng=${c.lng}&radius=${r}`;
+}
 
-    var center = circle.getLatLng();
-    var radius = Math.round(circle.getRadius() / 1000); // km
+circle.on("editable:vertex:drag editable:drag", function () {
+  // Update display
+  document.getElementById("radiusValue").innerText = circle.getRadius();
+});
 
-    // Build redirect URL
-    var url =
-      `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}`;
+// Auto-redirect back to Tally after user stops moving the circle:
+circle.on("editable:dragend", sendToTally);
+circle.on("editable:vertex:dragend", sendToTally);
 
-    // Redirect back to Tally
-    window.location.href = url;
-  });
 
   map.on("locationerror", function () {
     alert("Could not get your location. Please allow location permissions.");
@@ -127,5 +128,6 @@ circle.on("editable:vertex:drag editable:drag", function () {
 
 </body>
 </html>
+
 
 
