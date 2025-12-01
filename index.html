@@ -110,7 +110,7 @@ circle.on("editable:vertex:drag editable:drag", function () {
     if (!circle) return alert("Map is still loading…");
 
     var center = circle.getLatLng();
-    var radius = circle.getRadius();
+    var radius = Math.round(circle.getRadius() / 1000); // km
 
     // Build redirect URL
     var url =
@@ -127,4 +127,5 @@ circle.on("editable:vertex:drag editable:drag", function () {
 
 </body>
 </html>
+
 
