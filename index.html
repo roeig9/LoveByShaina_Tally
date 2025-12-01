@@ -94,12 +94,16 @@
 
     map.fitBounds(circle.getBounds());
 
-    document.getElementById("radiusValue").innerText = circle.getRadius();
+    document.getElementById("radiusValue").innerText = 
+  Math.round(circle.getRadius() / 1000) + " km";
+
 
     // Update displayed radius
-    circle.on("editable:vertex:drag editable:drag", function () {
-      document.getElementById("radiusValue").innerText = circle.getRadius();
-    });
+circle.on("editable:vertex:drag editable:drag", function () {
+  document.getElementById("radiusValue").innerText = 
+    Math.round(circle.getRadius() / 1000) + " km";
+});
+
   });
 
   document.getElementById("submitBtn").addEventListener("click", function () {
@@ -123,3 +127,4 @@
 
 </body>
 </html>
+
