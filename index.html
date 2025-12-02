@@ -131,8 +131,8 @@ circle.on("editable:vertex:drag editable:drag", function () {
       Radius: ${Math.round(radius / 1000)} km<br><br>
     `;
 
-    //const url =
-    //  `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}&city=${encodeURIComponent(city)}`;
+    const url =
+      `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}&city=${encodeURIComponent(city)}`;
 
     setTimeout(() => {
       window.location.href = url;
@@ -143,3 +143,4 @@ circle.on("editable:vertex:drag editable:drag", function () {
     alert("Could not get your location. Please allow location permissions.");
   });
 </script>
+
