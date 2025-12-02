@@ -106,24 +106,40 @@ circle.on("editable:vertex:drag editable:drag", function () {
 
   });
 
-  document.getElementById("submitBtn").addEventListener("click", function () {
+    async function getCityName(lat, lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const res = await fetch(url, { headers: { "User-Agent": "yourapp" } });
+    const data = await res.json();
+    return data.address.city || data.address.town || data.address.village || "Unknown";
+  }
+
+    document.getElementById("submitBtn").addEventListener("click", async function () {
     if (!circle) return alert("Map is still loading…");
 
-    var center = circle.getLatLng();
-    var radius = circle.getRadius();
+    const center = circle.getLatLng();
+    const radius = circle.getRadius();
 
-    // Build redirect URL
-    var url =
-      `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}`;
+    const city = await getCityName(center.lat, center.lng);
 
-    // Redirect back to Tally
-    window.location.href = url;
+    document.getElementById("map").style.display = "none";
+    document.getElementById("submitBtn").style.display = "none";
+
+    const box = document.querySelector(".info-box");
+    box.innerHTML = `
+      <b>Location Selected</b><br>
+      City: ${city}<br>
+      Radius: ${Math.round(radius / 1000)} km<br><br>
+    `;
+
+    //const url =
+    //  `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}&city=${encodeURIComponent(city)}`;
+
+    setTimeout(() => {
+      window.location.href = url;
+    }, 2000);
   });
 
   map.on("locationerror", function () {
     alert("Could not get your location. Please allow location permissions.");
   });
 </script>
-
-</body>
-</html>
