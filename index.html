@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Radius Selector Map</title>
+  <title>Radius Visualization Map</title>
 
   <!-- Leaflet CSS -->
   <link
@@ -10,18 +10,15 @@
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Leaflet Editable -->
-  <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js" defer></script>
 
   <style>
     body, html {
       margin: 0;
+      font-family: Arial;
       height: 100%;
       width: 100%;
-      overflow: hidden;
-      font-family: Arial;
     }
     #map {
       height: 100%;
@@ -32,115 +29,83 @@
       top: 10px;
       left: 10px;
       z-index: 1000;
-      background: white;
+      background: rgba(255,255,255,0.9);
       padding: 8px 12px;
       border-radius: 6px;
       box-shadow: 0 0 8px rgba(0,0,0,0.2);
-    }
-    #submitBtn {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      padding: 12px 22px;
-      background-color: #0066ff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
+<div id="map"></div>
 <div class="info-box">
-  Move the circle or drag its edge.<br>
-  Radius (meters): <span id="radiusValue">Loading…</span>
+  Distance radius: <span id="radiusValue">1 km</span>
 </div>
 
-<button id="submitBtn">Use this location</button>
-
-<div id="map"></div>
-
-<script>
-  // YOUR TALLY FORM URL
-  const TALLY_FORM_URL = "https://tally.so/r/NpqWgj";
-
+<script defer>
+window.addEventListener("DOMContentLoaded", () => {
   // Initialize map
-  var map = L.map('map', { editable: true }).setView([0, 0], 13);
+  var map = L.map('map', { editable: true }).setView([0, 0], 2);
 
-  // Tile layer
+  // OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+    maxZoom: 19
   }).addTo(map);
 
   var circle;
 
-  map.locate({ setView: true, maxZoom: 15 });
+  // Try to locate user
+  map.locate({ setView: true, maxZoom: 13 });
 
   map.on("locationfound", function (e) {
-    var lat = e.latlng.lat;
-    var lng = e.latlng.lng;
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
 
+    // Create editable circle
     circle = L.circle([lat, lng], {
-      radius: 1000,
-      editable: true
+      radius: 1000, // 1 km initial radius
+      editable: true,
+      color: '#0066ff',
+      fillColor: '#0066ff',
+      fillOpacity: 0.2
     }).addTo(map);
 
     circle.enableEdit();
-
     map.fitBounds(circle.getBounds());
 
-    document.getElementById("radiusValue").innerText = 
-  Math.round(circle.getRadius() / 1000) + " km";
+    updateRadiusDisplay();
 
-
-    // Update displayed radius
-circle.on("editable:vertex:drag editable:drag", function () {
-  document.getElementById("radiusValue").innerText = 
-    Math.round(circle.getRadius() / 1000) + " km";
-});
-
-  });
-
-    async function getCityName(lat, lng) {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
-    const res = await fetch(url, { headers: { "User-Agent": "yourapp" } });
-    const data = await res.json();
-    return data.address.city || data.address.town || data.address.village || "Unknown";
-  }
-
-    document.getElementById("submitBtn").addEventListener("click", async function () {
-    if (!circle) return alert("Map is still loading…");
-
-    const center = circle.getLatLng();
-    const radius = circle.getRadius();
-
-    const city = await getCityName(center.lat, center.lng);
-
-    document.getElementById("map").style.display = "none";
-    document.getElementById("submitBtn").style.display = "none";
-
-    const box = document.querySelector(".info-box");
-    box.innerHTML = `
-      <b>Location Selected</b><br>
-      City: ${city}<br>
-      Radius: ${Math.round(radius / 1000)} km<br><br>
-    `;
-
-    const url =
-      `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}&city=${encodeURIComponent(city)}`;
-
-    setTimeout(() => {
-      window.location.href = url;
-    }, 2000);
+    // Update radius display when circle is dragged/resized
+    circle.on("editable:vertex:drag editable:drag", updateRadiusDisplay);
   });
 
   map.on("locationerror", function () {
-    alert("Could not get your location. Please allow location permissions.");
+    alert("Could not get your location. Showing default view.");
+    map.setView([20,0], 2);
+    // Optional: create a default circle in center
+    circle = L.circle([20,0], {
+      radius: 1000,
+      editable: true,
+      color: '#0066ff',
+      fillColor: '#0066ff',
+      fillOpacity: 0.2
+    }).addTo(map);
+    circle.enableEdit();
+    updateRadiusDisplay();
+    circle.on("editable:vertex:drag editable:drag", updateRadiusDisplay);
   });
+
+  function updateRadiusDisplay() {
+    if (!circle) return;
+    const radiusMeters = circle.getRadius();
+    const km = (radiusMeters / 1000).toFixed(2);
+    document.getElementById("radiusValue").innerText = km + " km";
+  }
+
+});
 </script>
 
+</body>
+</html>
