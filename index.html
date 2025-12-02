@@ -1,76 +1,129 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="initial-scale=1, width=device-width" />
-    <style>
-      #map {
-        width: 100%;
-        height: 400px;
-        position: relative;
-      }
+<head>
+  <meta charset="utf-8" />
+  <title>Radius Selector Map</title>
 
-      /* Move zoom controls to bottom-right */
-      .gm-bundled-control.gm-bundled-control-on-bottom {
-        bottom: 20px !important;
-        right: 20px !important;
-        top: auto !important;
-        left: auto !important;
-      }
-    </style>
-  </head>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <body>
-    <div id="map"></div>
+  <!-- Leaflet Editable -->
+  <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
 
-    <script>
-      let map, circle, selectedLat, selectedLng;
+  <style>
+    body, html {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: Arial;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    .info-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    }
+    #submitBtn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      padding: 12px 22px;
+      background-color: #0066ff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
 
-      function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-          center: { lat: 32.0853, lng: 34.7818 },
-          zoom: 14,
-          disableDefaultUI: false,
-          zoomControl: true,
-        });
+<div class="info-box">
+  Move the circle or drag its edge.<br>
+  Radius (meters): <span id="radiusValue">Loading…</span>
+</div>
 
-        // Add circle on click
-        map.addListener("click", (e) => {
-          selectedLat = e.latLng.lat();
-          selectedLng = e.latLng.lng();
+<button id="submitBtn">Use this location</button>
 
-          if (circle) circle.setMap(null);
+<div id="map"></div>
 
-          circle = new google.maps.Circle({
-            center: { lat: selectedLat, lng: selectedLng },
-            radius: 30,
-            fillColor: "#4285F4",
-            fillOpacity: 0.3,
-            strokeColor: "#4285F4",
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            map,
-          });
+<script>
+  // YOUR TALLY FORM URL
+  const TALLY_FORM_URL = "https://tally.so/r/NpqWgj";
 
-          // Auto-update Tally hidden field (no extra button)
-          window.parent.postMessage(
-            {
-              type: "tally:setAnswer",
-              payload: {
-                fieldId: "location",
-                value: `${selectedLat},${selectedLng}`,
-              },
-            },
-            "*"
-          );
-        });
-      }
-    </script>
+  // Initialize map
+  var map = L.map('map', { editable: true }).setView([0, 0], 13);
 
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC9D-J32XYZabcd123456QweRTy&callback=initMap"
-      async
-      defer
-    ></script>
-  </body>
+  // Tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  var circle;
+
+  map.locate({ setView: true, maxZoom: 15 });
+
+  map.on("locationfound", function (e) {
+    var lat = e.latlng.lat;
+    var lng = e.latlng.lng;
+
+    circle = L.circle([lat, lng], {
+      radius: 1000,
+      editable: true
+    }).addTo(map);
+
+    circle.enableEdit();
+
+    map.fitBounds(circle.getBounds());
+
+    document.getElementById("radiusValue").innerText = 
+  Math.round(circle.getRadius() / 1000) + " km";
+
+
+    // Update displayed radius
+circle.on("editable:vertex:drag editable:drag", function () {
+  document.getElementById("radiusValue").innerText = 
+    Math.round(circle.getRadius() / 1000) + " km";
+});
+
+  });
+
+  document.getElementById("submitBtn").addEventListener("click", function () {
+    if (!circle) return alert("Map is still loading…");
+
+    var center = circle.getLatLng();
+    var radius = circle.getRadius();
+
+    // Build redirect URL
+    var url =
+      `${TALLY_FORM_URL}?lat=${center.lat}&lng=${center.lng}&radius=${radius}`;
+
+    // Redirect back to Tally
+    window.location.href = url;
+  });
+
+  map.on("locationerror", function () {
+    alert("Could not get your location. Please allow location permissions.");
+  });
+</script>
+
+</body>
 </html>
-
