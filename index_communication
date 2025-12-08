@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>סגנונות תקשורת</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #fce5e5;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+  .wrapper {
+    width: 100%;
+    max-width: 600px;
+    margin: 24px;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 20px 22px 24px;
+  }
+
+  .lang-switch { display: flex; justify-content: space-between; margin-bottom: 12px; }
+  .lang-left { display: flex; gap: 8px; }
+  .lang-btn,.debug-btn {
+    border-radius: 40px;
+    border: 1px solid #d0d7e2;
+    padding: 6px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    background: #ffffff;
+  }
+  .lang-btn.active { background:#f2f5ff; border-color:#4a90e2; font-weight:600; }
+  .debug-btn { background:#fffbe8; color:#7a5f00; }
+  .debug-btn.active { background:#ffd86e; border-color:#caa200; }
+
+  .progress-track { width:100%; height:8px; border-radius:6px; background:#e3e7f0; overflow:hidden; margin-bottom:12px; }
+  .progress-bar { height:100%; width:0%; background:linear-gradient(90deg,#4a90e2,#7f5af0); transition:width .25s; }
+
+  .question-number { font-size:14px; color:#555; margin-bottom:4px; }
+  .question-text { font-size:18px; font-weight:bold; margin-bottom:12px; }
+  .pair-label { font-size:15px; margin-bottom:18px; }
+
+  .choices { display:flex; flex-direction:column; gap:12px; }
+  .choice-button {
+    border-radius:10px;
+    border:1px solid #d0d7e2;
+    padding:14px;
+    background:#ffffff;
+    font-size:17px;
+    cursor:pointer;
+  }
+  .choice-button:hover {
+    background:#f3f6ff;
+    box-shadow:0 3px 10px rgba(0,0,0,0.06);
+  }
+
+  .result {
+    margin-top:16px;
+    padding:14px;
+    background:#f4f9ff;
+    border-radius:10px;
+    border:1px solid #d0e2ff;
+    font-size:17px;
+  }
+
+  #debugPanel {
+    margin-top:16px;
+    padding:10px;
+    background:#fff3c8;
+    border-radius:8px;
+    display:none;
+    font-size:12px;
+  }
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+  <div class="card">
+
+    <div class="lang-switch">
+      <div class="lang-left">
+        <button type="button" class="lang-btn active" id="btn-he" onclick="setLanguage('he')">🇮🇱 עברית</button>
+        <button type="button" class="lang-btn" id="btn-en" onclick="setLanguage('en')">🇺🇸 English</button>
+      </div>
+      <button type="button" class="debug-btn" id="debugToggle" onclick="toggleDebug()">🐞 Debug</button>
+    </div>
+
+    <h1 id="titleText">סגנונות תקשורת</h1>
+    <p id="introText">
+      בכל מסך יוצגו שתי מילים. בחר את המילה שמתאימה לך יותר. בסוף יוצגו התוצאות.
+    </p>
+
+    <div class="progress-track">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div id="progressLabel" style="font-size:14px;margin-bottom:12px;">התקדמות: 0%</div>
+
+    <div id="questionArea"></div>
+
+    <div id="resultArea" style="display:none;"></div>
+    <div id="debugPanel"></div>
+
+  </div>
+</div>
+
+<script>
+// ===============================
+// TRANSLATIONS (UI text)
+// ===============================
+const T = {
+  he: {
+    title: "סגנונות תקשורת",
+    intro: "בכל מסך יוצגו שתי מילים. בחר את המילה שמתאימה לך יותר. בסוף יוצגו התוצאות.",
+    questionOf: (i,t)=>`שאלה ${i} מתוך ${t}`,
+    questionPrompt: "איזו מילה מתאימה לך יותר?",
+    pairPrompt: "בחר אחת מבין השתיים:",
+    progress: p => `התקדמות: ${p}%`,
+    resultTitle: "התוצאה שלך",
+    resultCategory: "סגנון התקשורת שלך:",
+    discLegend: "I=מקדם · D=משימתי · S=תומך · C=מנתח"
+  },
+  en: {
+    title: "Communication Styles",
+    intro: "On each screen, choose the word that describes you better.",
+    questionOf: (i,t)=>`Question ${i} of ${t}`,
+    questionPrompt: "Which word fits you better?",
+    pairPrompt: "Choose one:",
+    progress: p => `Progress: ${p}%`,
+    resultTitle: "Your Result",
+    resultCategory: "Your communication style:",
+    discLegend: "I=Influencer · D=Dominance · S=Steady · C=Conscientious"
+  }
+};
+
+let lang = "he";
+
+// ===============================
+// QUESTIONS
+// ===============================
+const Y_he=["שיטתי","מחושב","מאורגן","שומר בבטן","מתמקד במשימה","בוחן","מרוחק","מאופק","בשליטה עצמית","מובנה","מתבדל","נוקשה","מעונב","שכלתני","מתוח","בלתי זמין","ממוקד","ממושמע","שגרתי"];
+const Y_he2=["אקראי","סופנטני","בלתי מאורגן","מבטא","מתמקד ביחסי אנוש","אימפולסיבי","קרוב","מלא חיים","משוחרר","בלתי מובנה","מעורב עם הבריות","גמיש","לא רשמי","רגשני","רפוי","זמין","בלתי ממוקד","מפוזר","לא שועה למוסכמות"];
+
+const Y_en=["Systematic","Calculated","Organized","Keeps inside","Task-focused","Analytical","Distant","Reserved","Self-controlled","Structured","Withdrawn","Rigid","Formal","Rational","Tense","Unavailable","Focused","Disciplined","Routine"];
+const Y_en2=["Random","Spontaneous","Disorganized","Expressive","People-focused","Impulsive","Close","Full of life","Free-spirited","Unstructured","Social","Flexible","Informal","Emotional","Relaxed","Available","Unfocused","Scattered","Nonconformist"];
+
+const X_he=["מצטרף","מהסס","מקבל בהבנה","מתבייש","מופנם","שקט","משלים","נסוג","מקשיב","מאופק","שאלות","סמוי","מסכים","נשלט","כבד","מבליע","נמנע","מצמם","פורש"];
+const X_he2=["לוקח פיקוד","מוכן","מאתגר","מכריע","מוחצן","רועש","יזם","אומר את שלו","דברן","דוחף","הצהרות","גלוי","מתווכח","משתלט","מזרז","מבטא","ניגש","מתרחב","פועל"];
+
+const X_en=["Joins","Hesitant","Accepting","Shy","Introverted","Quiet","Accommodating","Withdraws","Listener","Restrained","Asks","Subtle","Agreeing","Controlled","Slow","Suppresses","Avoids","Constricting","Withdraws"];
+const X_en2=["Takes lead","Ready","Challenging","Decisive","Extroverted","Loud","Initiator","Speaks up","Talkative","Pushy","States","Direct","Argues","Controlling","Pushes","Expresses","Approaches","Expanding","Acts"];
+
+// Steps: 19 Y → 19 X
+const steps = [...Array(19).keys()].map(i=>({dim:"Y",i}))
+             .concat([...Array(19).keys()].map(i=>({dim:"X",i})));
+const total = steps.length;
+
+// ===============================
+// SCORING
+// ===============================
+let posA=0,posB=0,posC=0,posD=0,idx=0;
+
+// DISC matrix mapping
+const matrix=[
+ [["I","I"],["I","S"],["S","I"],["S","S"]],
+ [["I","D"],["I","C"],["S","D"],["S","C"]],
+ [["D","I"],["D","S"],["C","I"],["C","S"]],
+ [["D","D"],["D","C"],["C","D"],["C","C"]]
+];
+
+function Yrow(y){ return y<-9?0:y<0?1:y<9?2:3; }
+function Xcol(x){ return x<-9?0:x<0?1:x<9?2:3; }
+
+// ===============================
+// UI HELPERS
+// ===============================
+function setLanguage(l){
+  lang=l;
+  document.documentElement.lang=l;
+  document.documentElement.dir=l==="he"?"rtl":"ltr";
+  document.body.style.direction=l==="he"?"rtl":"ltr";
+  document.getElementById("btn-he").classList.toggle("active",l==="he");
+  document.getElementById("btn-en").classList.toggle("active",l==="en");
+  renderUI();
+}
+
+function renderQuestion(){
+  if(idx>=total) return showResult();
+  const s=steps[idx], i=s.i, t=T[lang];
+  let L,R;
+
+  if(s.dim==="Y"){
+    L=(lang==="he"?Y_he:Y_en)[i];
+    R=(lang==="he"?Y_he2:Y_en2)[i];
+  } else {
+    L=(lang==="he"?X_he:X_en)[i];
+    R=(lang==="he"?X_he2:X_en2)[i];
+  }
+
+  questionArea.innerHTML=`
+    <div class="question-number">${t.questionOf(idx+1,total)}</div>
+    <div class="question-text">${t.questionPrompt}</div>
+    <div class="pair-label">${t.pairPrompt}</div>
+    <div class="choices">
+      <button class="choice-button" onclick="pick('L')">${L}</button>
+      <button class="choice-button" onclick="pick('R')">${R}</button>
+    </div>`;
+}
+
+function pick(side){
+  const s=steps[idx];
+  if(s.dim==="Y"){ side==="L"?posA++:posB++; }
+  else { side==="L"?posC++:posD++; }
+  idx++;
+  renderUI();
+}
+
+function renderProgress(){
+  const pct=Math.round((idx/total)*100);
+  progressBar.style.width = pct+"%";
+  progressLabel.textContent = T[lang].progress(pct);
+}
+
+// ===============================
+// RESULT SCREEN (full names only)
+// ===============================
+function DISCfull(code){
+  if(lang==="he"){
+    return code==="I"?"מקדם":
+           code==="D"?"משימתי":
+           code==="S"?"תומך":"מנתח";
+  } else {
+    return code==="I"?"Influencer":
+           code==="D"?"Dominance":
+           code==="S"?"Steady":"Conscientious";
+  }
+}
+
+function showResult(){
+  const Y=posB-posA, X=posD-posC, t=T[lang];
+  const pair = matrix[Yrow(Y)][Xcol(X)];
+
+  const full1 = DISCfull(pair[0]);
+  const full2 = DISCfull(pair[1]);
+
+  questionArea.style.display="none";
+  resultArea.style.display="block";
+
+  resultArea.innerHTML=`
+    <div class="result">
+      <h2>${t.resultTitle}</h2>
+
+      <p style="font-size:20px; font-weight:bold; margin:6px 0;">
+        ${t.resultCategory}
+      </p>
+
+      <p style="font-size:20px; margin:4px 0;">
+        ${full1} – ${full2}
+      </p>
+
+      <small>${t.discLegend}</small>
+    </div>
+  `;
+}
+
+// ===============================
+// DEBUG PANEL (optional)
+// ===============================
+let debugEnabled=false;
+function toggleDebug(){
+  debugEnabled=!debugEnabled;
+  debugPanel.style.display=debugEnabled?"block":"none";
+  document.getElementById("debugToggle").classList.toggle("active",debugEnabled);
+  updateDebug();
+}
+
+function updateDebug(){
+  if(!debugEnabled) return;
+  const Y=posB-posA, X=posD-posC;
+  debugPanel.innerHTML=`Y=${Y} | X=${X}<br>Step ${idx}/${total}`;
+}
+
+// ===============================
+// MAIN RENDER LOOP
+// ===============================
+function renderUI(){
+  titleText.textContent=T[lang].title;
+  introText.textContent=T[lang].intro;
+  renderQuestion();
+  renderProgress();
+  updateDebug();
+}
+
+renderUI(); // Init
+</script>
+
+</body>
+</html>
