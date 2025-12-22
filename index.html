@@ -51,13 +51,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
+    maxZoom: 15
   }).addTo(map);
 
   var circle;
 
   // Try to locate user
-  map.locate({ setView: true, maxZoom: 13 });
+  map.locate({ setView: true, maxZoom: 7 });
 
   map.on("locationfound", function (e) {
     const lat = e.latlng.lat;
@@ -65,7 +65,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Create editable circle
     circle = L.circle([lat, lng], {
-      radius: 1000, // 1 km initial radius
+      radius: 5000, // 1 km initial radius
       editable: true,
       color: '#0066ff',
       fillColor: '#0066ff',
